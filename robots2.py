@@ -14,7 +14,7 @@ class Edge:
         self.weight = copy.deepcopy(weight)
         self.length = length
         
-    def decreace(self, percent=DECREASEP, absolute=DECREASEA):
+    def decrease(self, percent=DECREASEP, absolute=DECREASEA):
         for i in range(len(self.weight)):
             self.weight[i] = max(0, elf.weight[i] - self.absolute)
             elf.weight[i] *= 1-self.percent/100        
@@ -92,10 +92,10 @@ class Ant:
         
     def process(self):
         if self.mode and self.checkPoint():
-            self.leaveFeromon()
+            self.leavePheromone()
             self.mode = 0
         if self.mode == 0 and self.checkLoad():
-            self.leaveFeromon()
+            self.leavePheromone()
             self.mode = getLoad()
         neighbours = []
         for i in self.graph[self.pos].neighbours:
@@ -103,7 +103,7 @@ class Ant:
                 neighbours.append(i)
         if not len(neighbours):
             #print('Нет свободных путей')
-            return
+            return (-1, -1)
         weights = [neighbour.weight[self.mode] + BASEPROB for neighbour in neighbours]
         decicion = random.random()*sum(weights)
         ind = 0
@@ -116,7 +116,7 @@ class Ant:
         self.graph[self.pos].liberate()
         self.graph[neighbours[ind].f].take()
         self.pos = neighbours[ind].f
-        print('k ',(self.pos, self.mode))
+        #print('k ',self.pos)
         return (self.pos, self.mode)
     
     def checkPoint(self):
@@ -135,7 +135,7 @@ class Ant:
                 return True
         return False
     
-    def leaveFeromon(self):
+    def leavePheromone(self):
         for v in self.path:
             v.weight[self.mode] += FERPERRUN/len(self.path)
         
@@ -185,11 +185,14 @@ class Board:
             return self.data[k]
         raise TypeError("Index must be int")    
     
-    def tick(self):
+    def tick(self, TICK):
         log_str = ''
+        ant_ctr = 1
         for ant in self.ants:
             pos, mail = ant.process()
-            log_str += f'robot in {pos // self.x} {pos % self.x} mail {mail}\n'
+            if (pos > -1 and mail > -1):
+                log_str += f'{TICK} {ant_ctr} {pos // self.x} {pos % self.x} {mail}\n'
+            ant_ctr+=1
         return log_str
             
     def isEmpty(self):
@@ -199,16 +202,24 @@ class Board:
         return True
 
 def getLoad():
-    return mail.pop(0)
-
+    if len(mail):
+        return mail.pop(0)
+    else:
+        return 0
 file = open('mailA.txt')
 mail = list(map(int, file.readlines()[0].split()))
 file.close()
 
 board = Board('mapA.txt')
-file = open('log.txt', 'w')
+file = open('log.csv', 'w')
+file.write("Iter Robot X Y MailType")
+p_flag = True
 while len(mail) or not board.isEmpty():
     TICK += 1
-    print(len(mail))
-    file.write(f'Iter {TICK}: \n' + board.tick() + '\n')
+    if len(mail) % 1000 == 0 and p_flag:
+        print(len(mail))
+        p_flag = False
+    elif len(mail) % 1000:
+        p_flag = True
+    file.write(board.tick(TICK) + '\n')
 file.close()
